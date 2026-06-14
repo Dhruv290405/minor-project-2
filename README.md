@@ -1,73 +1,114 @@
-# React + TypeScript + Vite
+# Minor Project 2 - Health Risk Assessment
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A full-stack health risk assessment application. Frontend sends patient vitals → Node.js API gateway relays them to a Python ML engine → prediction is saved to MongoDB.
 
-Currently, two official plugins are available:
+## Architecture
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
-
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```
+┌──────────┐    ┌──────────────────┐    ┌─────────────────┐
+│ Frontend  │───▶│ Node.js Gateway  │───▶│ Python ML Engine │
+│ (Vite+React)│   │ (Express :5000)  │   │ (FastAPI :8000)  │
+└──────────┘    └────────┬─────────┘   └─────────────────┘
+                         │
+                         ▼
+                   ┌──────────┐
+                   │ MongoDB  │
+                   │ (:27018) │
+                   └──────────┘
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## Project Structure
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+```
+minor-project-2/
+├── backend/                  # Express API gateway
+│   ├── server.js             # Routes: POST /api/assess, GET /api/history
+│   ├── models/Prediction.js  # Mongoose schema for assessment records
+│   ├── docker-compose.yml    # MongoDB container (port 27018)
+│   ├── .env                  # MONGO_URI connection string
+│   └── package.json
+├── Frontend/                 # React + TypeScript + Vite + Tailwind
+│   ├── src/                  # React source code
+│   ├── index.html
+│   ├── vite.config.ts        # Dev proxy: /api → localhost:5000
+│   ├── tsconfig*.json
+│   ├── tailwind.config.js
+│   ├── eslint.config.js
+│   └── package.json
+├── .gitignore
+└── README.md
+```
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+## Prerequisites
+
+- **Node.js** (v18+)
+- **Docker** (for MongoDB)
+- **Python ML Engine** running on `http://127.0.0.1:8000/predict`
+
+## Getting Started
+
+### 1. Start MongoDB
+
+```bash
+cd backend
+docker compose up -d
+```
+
+### 2. Start the Backend
+
+```bash
+cd backend
+npm install
+node server.js
+```
+
+### 3. Start the Frontend
+
+```bash
+cd Frontend
+npm install
+npm run dev
+```
+
+### 4. Python ML Engine
+
+Ensure your FastAPI ML service is running on `http://127.0.0.1:8000` with a `POST /predict` endpoint.
+
+## API Endpoints
+
+| Method | Endpoint          | Description                          |
+| ------ | ----------------- | ------------------------------------ |
+| POST   | `/api/assess`     | Submit patient vitals for assessment |
+| GET    | `/api/history`    | Paginated list of past assessments (10/page, use `?page=`) |
+
+### POST /api/assess
+
+**Request body:**
+```json
+{
+  "patientName": "John Doe",
+  "Pregnancies": 2,
+  "Glucose": 120,
+  "BloodPressure": 80,
+  "SkinThickness": 25,
+  "Insulin": 85,
+  "BMI": 28.5,
+  "Pedigree": 0.5,
+  "Age": 35
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Assessment complete",
+  "data": {
+    "risk_percentage": 45.2,
+    "explanation": {
+      "primary_risk_factors": ["High glucose", "Elevated BMI"],
+      "protective_factors": ["Normal blood pressure"]
+    }
+  }
+}
 ```
